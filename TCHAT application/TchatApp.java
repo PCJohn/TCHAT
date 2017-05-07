@@ -1,37 +1,46 @@
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowListener;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 
 import javax.swing.*;
 import javax.swing.text.DefaultCaret;
 
-public class TchatApp extends JFrame implements ActionListener,WindowListener{
+public class TchatApp extends JFrame implements ActionListener,WindowListener,ItemListener{
 
 	//Sensing modes
-	public final static int IN_MOUSE 	= 0;
-	public final static int IN_DEV 		= 1;
+	public final static int IN_MOUSE 		= 0;
+	public final static int IN_DEV 			= 1;
+	public final static String[] sensModes 	= {"MOUSE","DEVICE"};
 
 	//Recreation modes
-	public final static int TRANSLATE 	= 0;
-	public final static int REC			= 1;
-	public final static int SMOOTH		= 2;
+	public final static int TRANSLATE 		= 0;
+	public final static int REC				= 1;
+	public final static int SMOOTH			= 2;
+	public final static String[] recModes	= {"TRANSLATE","REC"};
 	
 	//Variables for every instance of TchatApp
-	private String userName		  = "";
+	private String userName		  	= "";
 	private Plotter plotter;
 
-	private JPanel chatPanel 	  = new JPanel();
-	private JTextArea chatLog  	  = new JTextArea();
-	private JScrollPane logScroll = new JScrollPane(chatLog);
-	private JPanel controlBar 	  = new JPanel();
+	private JPanel chatPanel 	  	= new JPanel();
+	private JTextArea chatLog  	  	= new JTextArea();
+	private JScrollPane logScroll 	= new JScrollPane(chatLog);
+	private JPanel controlBar 	  	= new JPanel();
 
-	private JPanel textBar 		  = new JPanel();
-	private JTextField statusBar  = new JTextField();
-	private JPanel connectBar	  = new JPanel();
+	private JPanel textBar 		  	= new JPanel();
+	private JTextField statusBar  	= new JTextField();
+	private JPanel connectBar	  	= new JPanel();
+	
+	private JPanel modeBar		  		= new JPanel();
+	private JComboBox<String> sensMode 	= new JComboBox<String>(sensModes);
+	private JComboBox<String> recMode 	= new JComboBox<String>(recModes);
 
 	private JTextField ipField	  = new JTextField(15);
 	private JButton connect 	  = new JButton("Connect");
@@ -47,12 +56,47 @@ public class TchatApp extends JFrame implements ActionListener,WindowListener{
 		if(ae.getSource().equals(send)){
 			if(spool.clientUname.length() > 0){
 				String msg = textField.getText().trim();
-				chatLog.append(this.userName+": "+msg+"\n");
-				textField.setText("");
+				if(msg.length() > 0){
+					chatLog.append(this.userName+": "+msg+"\n");
+					textField.setText("");
+				}
 				try {
 					//System.out.println(msg+SerialReader.MSG_FLAG+spool.clientUname+"=====");
-					URLReader.sendMsg(msg+SerialReader.MSG_FLAG,spool.clientUname);
-					//Get activated IDs from the mouse
+					if(msg.length() > 0)
+						URLReader.sendMsg(msg+SerialReader.MSG_FLAG,spool.clientUname);
+					ArrayList<Integer> activeIds = new ArrayList<Integer>();
+					if(spool.senseMode == TchatApp.IN_MOUSE){
+						//Get activated IDs from the mouse
+						activeIds = plotter.getActivePoints();
+					}
+					else if(spool.senseMode == TchatApp.IN_DEV){
+						//Send probe: Request touch position buffers
+		        		System.out.println("Sending: "+PortConnector.PROBE_POS);
+		        		spool.out.write(PortConnector.PROBE_POS);
+						//Get pos
+						String response = spool.in.next();
+						System.out.println("Received: "+response);
+						String str = "";
+						//ArrayList<Integer> resIdList = new ArrayList<Integer>();
+						for(int i = 0; i < response.length(); i++){
+							char ch = response.charAt(i);
+							if(ch == ','){
+								activeIds.add(Integer.parseInt(str.trim()));
+								str = "";
+							}
+							else{
+								str += ch;
+							}
+						}
+						//activeIds.add(Integer.parseInt(str.trim()));
+						System.out.print("Received values: "+activeIds);
+					}
+					String idMsg = "";
+					for(int i = 0; i < activeIds.size(); i++)
+						idMsg = idMsg+activeIds.get(i)+SerialReader.POS_FLAG;
+					//System.out.println(idMsg);
+					URLReader.sendMsg(idMsg,spool.clientUname);
+					plotter.reset();
 				} catch (Exception e) {e.printStackTrace();}
 			}
 		}
@@ -68,12 +112,17 @@ public class TchatApp extends JFrame implements ActionListener,WindowListener{
 					JOptionPane.showMessageDialog(null, clientUname+" is not online!");
 				}
 			}
-			catch(Exception e){System.out.println(e.getMessage());}
+			catch(Exception e){/*System.out.println(e.getMessage());*/}
 		}
 	}
 
+	public void itemStateChanged(ItemEvent ivt){
+		spool.senseMode = sensMode.getSelectedIndex();
+		spool.recMode = recMode.getSelectedIndex();
+	}
+
 	public TchatApp(String userName) throws Exception {
-		super("TCHAT -- "+userName);
+		super("TCHAT -- "+userName+Translator.currentDir());
 		this.userName = userName;
 		
         //Start pool for shared variables and spawn threads
@@ -104,6 +153,12 @@ public class TchatApp extends JFrame implements ActionListener,WindowListener{
 		textBar.add(textField,BorderLayout.WEST);
 		send.addActionListener(this);
 		textBar.add(send,BorderLayout.EAST);
+		modeBar.add(new JLabel("Sensing"));
+		modeBar.add(sensMode);
+		sensMode.addItemListener(this);
+		modeBar.add(new JLabel("Recreation"));
+		modeBar.add(recMode);
+		recMode.addItemListener(this);
 		connectBar.add(ipField,BorderLayout.WEST);
 		connect.addActionListener(this);
 		connectBar.add(connect,BorderLayout.EAST);
@@ -113,6 +168,7 @@ public class TchatApp extends JFrame implements ActionListener,WindowListener{
 		controlBar.add(connectBar);
 		controlBar.add(statusBar);
 		controlBar.add(textBar);
+		controlBar.add(modeBar);
 		
 		//Set ENTER key default button
 		JRootPane rootPane = SwingUtilities.getRootPane(this); 
@@ -124,11 +180,13 @@ public class TchatApp extends JFrame implements ActionListener,WindowListener{
         //Add control bar to frame
 		this.add(controlBar,BorderLayout.SOUTH);
 		
+		//Set window properties
 		this.setVisible(true);
-        this.setSize(850,600);
+        this.setSize(1200,650);
         Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
         this.setLocation(dim.width/2-this.getSize().width/2, dim.height/2-this.getSize().height/2);
-		
+		this.setResizable(false);
+        
         //Track status updates on the state pool
         Timer statUpd = new Timer(500,new StatusUpdate(spool,statusBar));
         statUpd.setRepeats(true);

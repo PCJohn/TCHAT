@@ -1,0 +1,6 @@
+model_checkpoint_path: "chkpnt7.ckpt-7"
+all_model_checkpoint_paths: "chkpnt3.ckpt-3"
+all_model_checkpoint_paths: "chkpnt4.ckpt-4"
+all_model_checkpoint_paths: "chkpnt5.ckpt-5"
+all_model_checkpoint_paths: "chkpnt6.ckpt-6"
+all_model_checkpoint_paths: "chkpnt7.ckpt-7"

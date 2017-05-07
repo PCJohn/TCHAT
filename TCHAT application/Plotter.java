@@ -29,7 +29,7 @@ public class Plotter extends JPanel implements MouseListener {
 		this.strokeHistory = new ArrayList<Point>();
 		this.idList = new ArrayList<Integer>();
 	    //this.background = new ImageIcon("src/Resources/hand.jpeg").getImage();
-		this.background = new ImageIcon(getClass().getResource("/Resources/hand.jpeg")).getImage();
+		this.background = new ImageIcon(getClass().getResource("/Resources/hand_sense.jpeg")).getImage();
 	    Dimension size = new Dimension(50,50);
 	    setPreferredSize(size);
 	    setLayout(null);
@@ -52,8 +52,12 @@ public class Plotter extends JPanel implements MouseListener {
 		if(strokeHistory.size() > 1){
 			for(int i = 0; i < strokeHistory.size()-1; i++){
 				Point p1 = strokeHistory.get(i);
+				int x1 = (int)(p1.x*this.getWidth());
+				int y1 = (int)(p1.y*this.getHeight());
 				Point p2 = strokeHistory.get(i+1);
-				g.drawLine(p1.x,p1.y,p2.x,p2.y);
+				int x2 = (int)(p2.x*this.getWidth());
+				int y2 = (int)(p2.y*this.getHeight());
+				g.drawLine(x1,y1,x2,y2);
 			}
 		}
 	}
@@ -61,11 +65,9 @@ public class Plotter extends JPanel implements MouseListener {
 	public void reset(){
 		strokeHistory.clear();
 		idList.clear();
-		if(!backgroundSet){
-			Graphics g = this.getGraphics();
-			setBackground(g);
-			backgroundSet = true;
-		}
+		Graphics g = this.getGraphics();
+		setBackground(g);
+		backgroundSet = true;
 	}
 	
 	public void activate(int id){
@@ -77,7 +79,10 @@ public class Plotter extends JPanel implements MouseListener {
 		Graphics2D g2d = (Graphics2D)g;
 		g2d.setColor(ovalFill);
 		Point idPoint = Translator.idToVec(id);
-		g2d.fillOval(idPoint.x-DIAMETER/2, idPoint.y-DIAMETER/2, DIAMETER, DIAMETER);
+		int x = (int)(idPoint.x*this.getWidth());
+		int y = (int)(idPoint.y*this.getHeight());
+		//System.out.println(x+" +++++ "+y);
+		g2d.fillOval(x-DIAMETER/2, y-DIAMETER/2, DIAMETER, DIAMETER);
 	}
 	
 	public ArrayList<Integer> getActivePoints(){
@@ -88,9 +93,9 @@ public class Plotter extends JPanel implements MouseListener {
 		if(spool.senseMode == TchatApp.IN_MOUSE){
 			int x = e.getX();
 			int y = e.getY();
-			System.out.println(x+" == "+y);
+			//System.out.println(((float)x)/this.getWidth()+" == "+((float)y)/this.getHeight());
 			//Get ID from the X-Y coordinates
-			int id = Translator.vecToId(x, y);
+			int id = Translator.vecToId(x/((double)this.getWidth()),y/((double)this.getHeight()));
 			//Append the nearest ID to the idList
 			idList.add(id);
 			//Activate this point -- The nearest ID will be activated for the other user

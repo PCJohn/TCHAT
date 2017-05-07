@@ -1,3 +1,4 @@
+import gnu.io.*;
 import java.io.*;
 import java.io.IOException;
 import java.io.InputStream;
@@ -14,9 +15,13 @@ public class PortConnector implements Runnable{
 	//Instructions to the board
 	final static char PROBE_DEV = '#'; 	//Probe -- check if this is our device
 	final static char DEV_RES = '%';	//Expected handshake response from device
-	final static char PROBE_POS = 'p'; 	//Probe position -- request touch position
-	final static char STIM_POS = 's';	//Instruction to send recreation position
+	final static char PROBE_POS = 'p'; 	//Probe position -- request touch positions
+	final static char STIM_POS = 's';	//Instruction to send recreation positions
 
+	//Modes for recreation: Sequentially or all together
+	final static char ALL_MODE = 'A';
+	final static char SEQ_MODE = 'S';
+	
 	//Parameters for transmission to the board
 	final static int TIME_OUT 	= 2000;
 	final static int BAUD_RATE 	= 9600;
@@ -60,7 +65,8 @@ public class PortConnector implements Runnable{
     	while(!spool.exitFlag){
 	    	if(!spool.isConnected){
 	    		ArrayList<String> availablePorts = getSerialPorts();
-		    	for(String portName : availablePorts){
+	    		//System.out.println(availablePorts);
+	    		for(String portName : availablePorts){
 		    		try{
 		    			CommPortIdentifier pi = CommPortIdentifier.getPortIdentifier(portName);
 		    			if(pi.isCurrentlyOwned())
@@ -78,9 +84,7 @@ public class PortConnector implements Runnable{
 		    	            
 		    	            //Initial handshake -- Check if our device
 		    	            this.spool.out.write(PROBE_DEV);
-		    	            System.out.println("Here1");
 		    	            char res = this.spool.in.next().charAt(0);
-		    	            System.out.println("HERE_________");
 		    	            if(res == DEV_RES){
 		    	            	System.out.println("Connection established at port "+portName);
 		    	            	//Set state to show that handshake successful
